@@ -49,18 +49,20 @@ pip install -r requirements.txt
 
 ## Environment Setup
 
-1. Create a `.env` file in the project root:
+1. Copy the example environment file:
 
 ```bash
-touch .env
+cp .env.example .env
 ```
 
-2. Add the following environment variables to `.env`:
+2. Edit `.env` and add your actual credentials:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_actual_gemini_api_key_here
 FIREBASE_CREDENTIALS_PATH=path/to/your/firebase-service-account.json
 ```
+
+⚠️ **Never commit the `.env` file to version control!**
 
 ## Firebase Setup
 
@@ -87,13 +89,29 @@ FIREBASE_CREDENTIALS_PATH=path/to/your/firebase-service-account.json
    - Register your app with a nickname
    - Copy the Firebase configuration object
 
-6. Update Firebase configuration in your frontend code (typically in `static/js/firebase-config.js`):
+6. Create your Firebase frontend configuration:
+   - Copy `static/js/firebase-config.example.js` to `static/js/firebase-config.js`
+   - Edit `firebase-config.js` and replace the placeholder values with your actual Firebase configuration:
 
 ```javascript
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
 const firebaseConfig = {
-  // Paste your Firebase config object here
+  apiKey: "YOUR_ACTUAL_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
 };
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 ```
+
+⚠️ **Never commit `firebase-config.js` to version control!**
 
 ## Gemini API Setup
 
