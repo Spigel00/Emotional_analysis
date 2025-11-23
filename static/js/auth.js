@@ -1,9 +1,19 @@
+import { auth } from "./firebase-config.js";
+import { 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
 // Global flag to prevent loops
 let isCheckingAuth = false;
 let isInitialAuthCheck = true;
 
 // Only run auth check if Firebase auth is available
-if (typeof auth !== "undefined") {
+if (auth) {
   auth.onAuthStateChanged((user) => {
     if (isCheckingAuth) return;
     isCheckingAuth = true;
@@ -14,7 +24,7 @@ if (typeof auth !== "undefined") {
 
       if (user) {
         if (!user.emailVerified) {
-          auth.signOut();
+          signOut(auth);
           if (!isAuthPage) {
             window.location.href = "/auth/login";
           }
@@ -44,11 +54,12 @@ if (typeof auth !== "undefined") {
 
 const handleRegister = async (email, password) => {
   try {
-    const userCredential = await auth.createUserWithEmailAndPassword(
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
       email,
       password
     );
-    await userCredential.user.sendEmailVerification();
+    await sendEmailVerification(userCredential.user);
     return userCredential;
   } catch (error) {
     throw error;
@@ -57,12 +68,13 @@ const handleRegister = async (email, password) => {
 
 const handleLogin = async (email, password) => {
   try {
-    const userCredential = await auth.signInWithEmailAndPassword(
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
       email,
       password
     );
     if (!userCredential.user.emailVerified) {
-      await auth.signOut();
+      await signOut(auth);
       throw new Error("Please verify your email first");
     }
     return userCredential;
@@ -73,7 +85,7 @@ const handleLogin = async (email, password) => {
 
 const handlePasswordReset = async (email) => {
   try {
-    await auth.sendPasswordResetEmail(email);
+    await sendPasswordResetEmail(auth, email);
     return true;
   } catch (error) {
     throw error;
@@ -184,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ==== Token Refresh ====
 const refreshTokenHourly = () => {
-  if (typeof auth !== "undefined" && auth.currentUser) {
+  if (auth && auth.currentUser) {
     auth.currentUser
       .getIdToken(true)
       .then((token) => {

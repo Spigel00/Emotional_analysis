@@ -164,16 +164,12 @@
       </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <!-- Firebase Configuration and Auth Logic as Module -->
+    <script type="module" src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
 
-    <!-- Firebase Configuration from static file -->
-    <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
-
-    <script>
-      // Firebase app and auth are initialized in firebase-config.js
-      // const auth = firebase.auth(); // This should now be available from firebase-config.js
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
 
       const mfaForm = document.getElementById("mfa-form");
       const mfaButton = document.getElementById("mfa-button");

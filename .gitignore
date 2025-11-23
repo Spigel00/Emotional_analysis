@@ -1,4 +1,43 @@
+# Virtual Environment
 /venv
+venv/
+env/
+ENV/
+
+# Environment Variables
 .env
+.env.local
+
+# Firebase Credentials
 /static/js/firebase-config.js
 firebase-service-account.json
+crime-interrogation-firebase-adminsdk-*.json
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data Files
+user_cases.json
+saved_sessions/
+
+# Logs
+*.log

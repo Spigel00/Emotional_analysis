@@ -176,22 +176,19 @@
       </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <!-- Firebase Configuration and Auth Logic as Module -->
+    <script type="module" src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
 
-    <!-- Firebase Configuration from static file -->
-    <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
-
-    <script>
-      // Firebase app and auth are initialized in firebase-config.js
-      // const auth = firebase.auth(); // This should now be available from firebase-config.js
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
       const loginForm = document.getElementById("login-form");
       const loginButton = document.getElementById("login-button");
       const errorMessageDiv = document.getElementById("error-message");
 
-      loginForm.addEventListener("submit", (e) => {
+      loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const email = loginForm.email.value;
         const password = loginForm.password.value;
@@ -201,48 +198,43 @@
         errorMessageDiv.style.display = "none";
         errorMessageDiv.textContent = "";
 
-        auth
-          .signInWithEmailAndPassword(email, password)
-          .then((userCredential) => {
-            // Signed in
-            const user = userCredential.user;
-            console.log("User logged in:", user.uid);
+        try {
+          // Sign in with Firebase
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const user = userCredential.user;
+          console.log("User logged in:", user.uid);
 
-            // Get ID token
-            return user.getIdToken().then((idToken) => {
-              // Send token to backend to set HttpOnly cookie
-              return fetch("/set_auth_cookie", {
-                method: "POST",
-                headers: {
-                  Authorization: "Bearer " + idToken,
-                  "Content-Type": "application/json",
-                },
-              });
-            });
-          })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(
-                "Failed to set auth cookie. Status: " + response.status
-              );
-            }
-            return response.json();
-          })
-          .then((data) => {
-            console.log("Auth cookie set successfully:", data.message);
-            // Redirect to dashboard or original destination
-            const nextUrl =
-              new URLSearchParams(window.location.search).get("next") ||
-              '{{ url_for("dashboard") }}';
-            window.location.href = nextUrl;
-          })
-          .catch((error) => {
-            console.error("Login error:", error);
-            errorMessageDiv.textContent = error.message; // Display a user-friendly error
-            errorMessageDiv.style.display = "block";
-            loginButton.disabled = false;
-            loginButton.textContent = "Log In";
+          // Get ID token
+          const idToken = await user.getIdToken();
+          
+          // Send token to backend to set HttpOnly cookie
+          const response = await fetch("/set_auth_cookie", {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + idToken,
+              "Content-Type": "application/json",
+            },
           });
+
+          if (!response.ok) {
+            throw new Error("Failed to set auth cookie. Status: " + response.status);
+          }
+
+          const data = await response.json();
+          console.log("Auth cookie set successfully:", data.message);
+          
+          // Redirect to dashboard or original destination
+          const nextUrl =
+            new URLSearchParams(window.location.search).get("next") ||
+            '{{ url_for("dashboard") }}';
+          window.location.href = nextUrl;
+        } catch (error) {
+          console.error("Login error:", error);
+          errorMessageDiv.textContent = error.message;
+          errorMessageDiv.style.display = "block";
+          loginButton.disabled = false;
+          loginButton.textContent = "Log In";
+        }
       });
     </script>
   </body>

@@ -183,16 +183,13 @@
       </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <!-- Firebase Configuration and Auth Logic as Module -->
+    <script type="module" src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/auth.js') }}"></script>
 
-    <!-- Firebase Configuration from static file -->
-    <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
-
-    <script>
-      // Firebase app and auth are initialized in firebase-config.js
-      // const auth = firebase.auth(); // This should now be available from firebase-config.js
+    <script type="module">
+      import { auth } from "/static/js/firebase-config.js";
+      import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
       const registerForm = document.getElementById("register-form");
       const registerButton = document.getElementById("register-button");
@@ -216,57 +213,51 @@
         registerButton.disabled = true;
         registerButton.textContent = "Registering...";
 
-        auth
-          .createUserWithEmailAndPassword(email, password)
-          .then((userCredential) => {
-            // Signed in
-            const user = userCredential.user;
-            console.log("User registered:", user.uid);
-            // Optionally send email verification
-            user
-              .sendEmailVerification()
-              .then(() => {
-                console.log("Verification email sent.");
-              })
-              .catch((err) =>
-                console.error("Error sending verification email:", err)
-              );
+        try {
+          // Create user with Firebase
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const user = userCredential.user;
+          console.log("User registered:", user.uid);
+          
+          // Send email verification
+          try {
+            await sendEmailVerification(user);
+            console.log("Verification email sent.");
+          } catch (err) {
+            console.error("Error sending verification email:", err);
+          }
 
-            // Get ID token to potentially auto-login or set cookie
-            return user.getIdToken().then((idToken) => {
-              return fetch("/set_auth_cookie", {
-                method: "POST",
-                headers: {
-                  Authorization: "Bearer " + idToken,
-                  "Content-Type": "application/json",
-                },
-              });
-            });
-          })
-          .then((response) => {
-            if (!response.ok) {
-              // If cookie setting fails, user is still created, so maybe just log and proceed
-              console.warn(
-                "Failed to set auth cookie post-registration. Status: " +
-                  response.status
-              );
-            } else {
-              console.log("Auth cookie set successfully post-registration");
-            }
-            // Redirect to login or a page asking to verify email
-            // For now, redirecting to login, but you might want a different flow
-            alert(
-              "Registration successful! Please check your email for verification and then log in."
-            );
-            window.location.href = '{{ url_for("login") }}';
-          })
-          .catch((error) => {
-            console.error("Registration error:", error);
-            errorMessageDiv.textContent = error.message;
-            errorMessageDiv.style.display = "block";
-            registerButton.disabled = false;
-            registerButton.textContent = "Register";
+          // Get ID token to potentially auto-login or set cookie
+          const idToken = await user.getIdToken();
+          const response = await fetch("/set_auth_cookie", {
+            method: "POST",
+            headers: {
+              Authorization: "Bearer " + idToken,
+              "Content-Type": "application/json",
+            },
           });
+
+          if (!response.ok) {
+            console.warn(
+              "Failed to set auth cookie post-registration. Status: " +
+                response.status
+            );
+          } else {
+            console.log("Auth cookie set successfully post-registration");
+          }
+          
+          // Redirect to login or a page asking to verify email
+          alert(
+            "Registration successful! Please check your email for verification and then log in."
+          );
+          window.location.href = '{{ url_for("login") }}';
+        } catch (error) {
+          console.error("Registration error:", error);
+          errorMessageDiv.textContent = error.message;
+          errorMessageDiv.style.display = "block";
+          registerButton.disabled = false;
+          registerButton.textContent = "Register";
+        }
       });
     </script>
   </body>
