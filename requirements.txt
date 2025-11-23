@@ -9,4 +9,6 @@ openpyxl # Required for Excel export
 firebase-admin
 tf-keras
 dotenv
+flask-cors # Required for browser webcam feature
+numpy # Required for image processing
 

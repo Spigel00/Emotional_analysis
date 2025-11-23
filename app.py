@@ -1229,6 +1229,166 @@ def string_to_datetime_filter(iso_string):
 app.jinja_env.filters['string_to_datetime'] = string_to_datetime_filter
 app.jinja_env.globals['modules'] = {'datetime': datetime}
 
+# === Browser webcam routes (add-on) ===
+# These routes provide a publicly accessible camera page for visitor emotion analysis
+# Added as isolated feature - does not modify existing analysis logic or global state
+
+# Import additional dependencies for browser webcam feature
+try:
+    import base64
+    import numpy as np
+    from flask_cors import CORS
+except ImportError as e:
+    app.logger.warning(f"Optional dependencies for camera feature not fully available: {e}")
+
+# Enable CORS for API endpoints (development - restrict origins in production)
+try:
+    CORS(app, resources={r"/api/*": {"origins": "*"}})  # TODO: Restrict origins in production
+    app.logger.info("CORS enabled for /api/* endpoints (camera feature)")
+except:
+    app.logger.warning("CORS could not be enabled - flask-cors may not be installed")
+
+@app.route('/camera')
+def camera_page():
+    """
+    Public camera page - allows visitors to use their webcam for emotion analysis.
+    No auth decorator - page is publicly accessible but shows sign-in prompt.
+    """
+    app.logger.info("Camera page accessed")
+    return render_template('dashboard/camera.html')
+
+@app.route('/api/frame', methods=['POST'])
+def process_frame():
+    """
+    Processes a single frame from browser webcam for emotion analysis.
+    Requires authentication via cookie or Authorization header.
+    Isolated from main analysis flow - does not modify global analysis_data.
+    """
+    # --- Authentication Check ---
+    token = None
+    user_id = None
+    
+    # Try Authorization header first
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    
+    # Fallback to cookie
+    if not token:
+        token = request.cookies.get('firebaseToken')
+    
+    if not token:
+        app.logger.warning("Frame upload without auth token")
+        return jsonify({"error": "auth required"}), 401
+    
+    # Verify token
+    try:
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token.get('uid')
+        if not user_id:
+            raise ValueError("Token missing UID")
+        app.logger.debug(f"Frame processing for user: {user_id}")
+    except Exception as e:
+        app.logger.error(f"Token verification failed for frame upload: {e}")
+        return jsonify({"error": "auth required"}), 401
+    
+    # --- Request Validation ---
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
+    
+    data = request.get_json()
+    image_base64 = data.get('image_base64')
+    
+    if not image_base64:
+        return jsonify({"error": "Missing image_base64 field"}), 400
+    
+    # --- Decode and Size Check ---
+    try:
+        image_bytes = base64.b64decode(image_base64)
+        
+        # Reject oversized images (> 2.5MB)
+        if len(image_bytes) > 2.5 * 1024 * 1024:
+            app.logger.warning(f"Frame too large from user {user_id}: {len(image_bytes)} bytes")
+            return jsonify({"error": "Image too large (max 2.5MB)"}), 413
+        
+        # Convert to OpenCV image
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None or img.size == 0:
+            return jsonify({"error": "Invalid image data"}), 400
+        
+        # Resize if too large (reduce CPU load)
+        height, width = img.shape[:2]
+        if width > 640:
+            scale = 640.0 / width
+            new_width = 640
+            new_height = int(height * scale)
+            img = cv2.resize(img, (new_width, new_height))
+            app.logger.debug(f"Resized frame from {width}x{height} to {new_width}x{new_height}")
+        
+    except Exception as e:
+        app.logger.error(f"Error decoding frame from user {user_id}: {e}")
+        return jsonify({"error": "Invalid image encoding"}), 400
+    
+    # --- Emotion Analysis ---
+    try:
+        # Use DeepFace with enforce_detection=False to handle no-face frames gracefully
+        results = DeepFace.analyze(
+            img,
+            actions=['emotion'],
+            detector_backend='opencv',
+            enforce_detection=False,  # Don't fail if no face detected
+            silent=True
+        )
+        
+        if results and isinstance(results, list) and len(results) > 0:
+            result = results[0]
+            dominant_emotion = result.get('dominant_emotion', 'neutral')
+            emotions = result.get('emotion', {})
+            
+            # Convert numpy types to Python native for JSON serialization
+            emotions_clean = {k: float(v) for k, v in emotions.items()}
+            
+            app.logger.info(f"Frame analyzed for user {user_id}: {dominant_emotion}")
+            
+            return jsonify({
+                "status": "ok",
+                "dominant_emotion": dominant_emotion,
+                "emotions": emotions_clean,
+                "uid": user_id,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+        else:
+            # No face detected or empty result
+            return jsonify({
+                "status": "ok",
+                "dominant_emotion": "no_face",
+                "emotions": {},
+                "uid": user_id,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+            
+    except ValueError as e:
+        # Handle "Face could not be detected" gracefully
+        if "Face could not be detected" in str(e):
+            app.logger.debug(f"No face in frame from user {user_id}")
+            return jsonify({
+                "status": "ok",
+                "dominant_emotion": "no_face",
+                "emotions": {},
+                "uid": user_id
+            })
+        else:
+            app.logger.error(f"DeepFace analysis error for user {user_id}: {e}")
+            return jsonify({"error": "Analysis failed"}), 500
+            
+    except Exception as e:
+        app.logger.error(f"Unexpected error analyzing frame for user {user_id}: {e}", exc_info=True)
+        return jsonify({"error": "Analysis failed"}), 500
+
+# === End of browser webcam routes ===
+
 # --- Main Execution ---
 if __name__ == '__main__':
     # Ensure save directory exists

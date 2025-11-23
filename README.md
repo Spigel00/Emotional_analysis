@@ -154,3 +154,61 @@ The project requires the following main dependencies:
 - Google Generative AI (Gemini)
 - Pandas
 - Python-dotenv
+- Flask-CORS (for browser webcam feature)
+- NumPy (for image processing)
+
+## Browser Webcam Feature
+
+A new isolated feature allows visitors to use their own browser camera for real-time emotion analysis.
+
+### Accessing the Camera Page
+
+1. Navigate to `http://localhost:5000/camera` (or your deployed URL)
+2. The page is publicly accessible but requires Firebase sign-in to use the camera
+3. Click "Sign In with Firebase" and complete authentication
+4. Click "Start Camera" to begin analysis
+5. Grant browser camera permissions when prompted
+
+### How It Works
+
+- **Client-side capture**: Frames are captured at 800ms intervals from the user's webcam
+- **Real-time analysis**: Each frame is sent to `/api/frame` endpoint for DeepFace emotion analysis
+- **Authentication**: Both cookie-based and header-based (Bearer token) authentication are supported
+- **Privacy**: Frames are analyzed in real-time and NOT stored on the server
+- **Isolation**: This feature does not interfere with the main interrogation analysis flow
+
+### Technical Details
+
+- Frame resolution: 480x360 (resized from camera input)
+- Frame format: JPEG with 60% quality compression
+- Max frame size: 2.5MB (enforced server-side)
+- Analysis interval: 800ms between frames
+- Error handling: Exponential backoff with up to 3 retries
+
+### Security & Privacy
+
+- **HTTPS Required**: For production deployment, HTTPS is mandatory for camera access
+- **User Consent**: Clear privacy notice displayed before camera activation
+- **Authentication**: All frame uploads require valid Firebase authentication
+- **No Storage**: Video frames are processed and discarded immediately
+- **CORS**: Currently set to allow all origins for development - **restrict in production**
+
+### Deployment Notes (Render or similar platforms)
+
+1. **Environment Variables**: Ensure `GEMINI_API_KEY` and `FIREBASE_SERVICE_ACCOUNT_JSON` are set
+2. **HTTPS**: Render provides HTTPS by default - required for camera access
+3. **Instance Size**: DeepFace analysis is CPU-intensive - consider:
+   - Basic: Suitable for light testing
+   - Standard/Pro: Recommended for multiple concurrent users
+4. **CORS Configuration**: Update `app.py` line with CORS to restrict origins:
+   ```python
+   CORS(app, resources={r"/api/*": {"origins": ["https://yourdomain.com"]}})
+   ```
+5. **Demo Image**: Move the placeholder image from `/mnt/data/` to `/static/images/` and update the path in `camera.html`
+
+### Troubleshooting
+
+- **Camera not starting**: Check browser permissions and ensure HTTPS is enabled
+- **Authentication errors**: Verify Firebase configuration and token validity
+- **Analysis errors**: Check server logs for DeepFace/OpenCV issues
+- **Performance issues**: Consider reducing frame rate or upgrading server instance
