@@ -1,7 +1,8 @@
 import os
 import cv2
 from flask import Flask,url_for, redirect,render_template, Response, jsonify, request, stream_with_context, make_response
-
+from flask import Response
+import json
 from deepface import DeepFace
 import threading
 import time
@@ -1386,6 +1387,18 @@ def process_frame():
     except Exception as e:
         app.logger.error(f"Unexpected error analyzing frame for user {user_id}: {e}", exc_info=True)
         return jsonify({"error": "Analysis failed"}), 500
+@app.route('/static/js/firebase-config.js')
+def firebase_config_js():
+    cfg = {
+        "apiKey": os.getenv("FIREBASE_API_KEY", ""),
+        "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+        "projectId": os.getenv("FIREBASE_PROJECT_ID", ""),
+        "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+        "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+        "appId": os.getenv("FIREBASE_APP_ID", "")
+    }
+    js = "window.firebaseConfig = " + json.dumps(cfg) + ";"
+    return Response(js, mimetype='application/javascript')
 
 # === End of browser webcam routes ===
 
