@@ -49,6 +49,8 @@ pip install -r requirements.txt
 
 ## Environment Setup
 
+### Local Development
+
 1. Copy the example environment file:
 
 ```bash
@@ -63,6 +65,32 @@ FIREBASE_CREDENTIALS_PATH=path/to/your/firebase-service-account.json
 ```
 
 ⚠️ **Never commit the `.env` file to version control!**
+
+### Render Deployment
+
+Set the following environment variables in Render dashboard:
+
+**Backend (Firebase Admin SDK):**
+```env
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","private_key":"..."}
+```
+
+**Frontend (Firebase Web SDK):**
+```env
+FIREBASE_API_KEY=your_web_api_key
+FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+FIREBASE_APP_ID=your_app_id
+FIREBASE_MEASUREMENT_ID=your_measurement_id (optional)
+```
+
+**Important Notes:**
+- For `FIREBASE_SERVICE_ACCOUNT_JSON`, paste the entire contents of your Firebase service account JSON file as a single-line string
+- The Frontend variables come from your Firebase Web App configuration (different from service account)
+- The app automatically detects whether to use `FIREBASE_CREDENTIALS_PATH` (local file) or `FIREBASE_SERVICE_ACCOUNT_JSON` (env variable)
 
 ## Firebase Setup
 

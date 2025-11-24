@@ -95,12 +95,27 @@ except Exception as e:
 
 # --- Firebase Initialization ---
 try:
-    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
-    cred = credentials.Certificate(cred_path)
+    # Support both file path (local dev) and JSON string (Render deployment)
+    firebase_creds_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+    firebase_creds_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+    
+    if firebase_creds_json:
+        # Render deployment: JSON credentials as environment variable
+        app.logger.info("Loading Firebase credentials from FIREBASE_SERVICE_ACCOUNT_JSON env var")
+        cred_dict = json.loads(firebase_creds_json)
+        cred = credentials.Certificate(cred_dict)
+    elif firebase_creds_path:
+        # Local development: JSON file path
+        app.logger.info(f"Loading Firebase credentials from file: {firebase_creds_path}")
+        cred = credentials.Certificate(firebase_creds_path)
+    else:
+        raise ValueError("Neither FIREBASE_SERVICE_ACCOUNT_JSON nor FIREBASE_CREDENTIALS_PATH is set")
+    
     firebase_admin.initialize_app(cred)
     app.logger.info("Firebase Admin SDK initialized successfully.")
 except Exception as e:
     app.logger.error(f"Failed to initialize Firebase Admin SDK: {e}")
+    app.logger.error("Make sure FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_CREDENTIALS_PATH is properly set")
 
 
 
@@ -652,6 +667,13 @@ def mfa_verify():
 # @api_token_required # Protect this endpoint - only valid tokens should set cookies
 def set_auth_cookie():
     """Sets the Firebase token as an HttpOnly cookie."""
+    # Check if Firebase is initialized
+    try:
+        firebase_admin.get_app()
+    except ValueError:
+        app.logger.error("Firebase not initialized - cannot verify token")
+        return jsonify({"message": "Firebase authentication not configured"}), 503
+    
     token = request.headers.get('Authorization')
     if not token or not token.startswith('Bearer '):
          return jsonify({"message": "Authorization token missing or invalid"}), 401
