@@ -48,7 +48,7 @@ def add_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https:; "
         "font-src 'self' data: https://cdn.jsdelivr.net; "
-        "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; "
+        "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.gstatic.com wss://*.firebaseio.com; "
         "frame-src 'self' https://*.firebaseapp.com; "
     )
     response.headers['Content-Security-Policy'] = csp
