@@ -433,9 +433,21 @@ def token_required(f):
         token = request.cookies.get('firebaseToken') # Prefer secure HttpOnly cookie
         if not token:
             app.logger.warning("No auth token cookie found, redirecting to login.")
+            # For SSE endpoints, return error instead of redirect
+            if request.path == '/analysis_stream':
+                return jsonify({"error": "Authentication required"}), 401
             return redirect(url_for('login', next=request.url)) # Redirect to login
 
         try:
+            # Check if Firebase is initialized
+            try:
+                firebase_admin.get_app()
+            except ValueError:
+                app.logger.error("Firebase not initialized during token verification")
+                if request.path == '/analysis_stream':
+                    return jsonify({"error": "Authentication service unavailable"}), 503
+                return redirect(url_for('login', next=request.url))
+            
             if token.startswith('Bearer '): # Should not happen with cookies, but good practice
                 token = token.split(' ')[1]
 
@@ -449,12 +461,16 @@ def token_required(f):
             return f(user_id, *args, **kwargs)
 
         except auth.ExpiredIdTokenError:
-            app.logger.warning("Expired auth token, redirecting to login.")
+            app.logger.warning("Expired auth token")
+            if request.path == '/analysis_stream':
+                return jsonify({"error": "Token expired"}), 401
             response = make_response(redirect(url_for('login', next=request.url)))
             response.delete_cookie('firebaseToken')
             return response
         except Exception as e:
-            app.logger.error(f"Token verification failed: {e}, redirecting to login.")
+            app.logger.error(f"Token verification failed: {e}")
+            if request.path == '/analysis_stream':
+                return jsonify({"error": f"Authentication failed: {str(e)}"}), 401
             response = make_response(redirect(url_for('login', next=request.url)))
             response.delete_cookie('firebaseToken')
             return response
@@ -872,8 +888,25 @@ def stop_analysis(user_id):
 def analysis_stream(user_id): # Still needs user_id due to decorator
     """Endpoint to stream analysis data using Server-Sent Events (SSE)."""
     app.logger.info(f"Client connected to SSE analysis stream (User: {user_id}).")
+    
+    # Check if Firebase is initialized before starting stream
+    try:
+        firebase_admin.get_app()
+    except ValueError:
+        app.logger.error("Firebase not initialized - cannot start SSE stream")
+        return jsonify({"error": "Authentication service not available"}), 503
+    
     # stream_with_context ensures the app context is available in the generator
-    return Response(stream_with_context(generate_analysis_stream()), mimetype='text/event-stream')
+    try:
+        return Response(stream_with_context(generate_analysis_stream()), 
+                       mimetype='text/event-stream',
+                       headers={
+                           'Cache-Control': 'no-cache',
+                           'X-Accel-Buffering': 'no'
+                       })
+    except Exception as e:
+        app.logger.error(f"Error starting SSE stream: {e}", exc_info=True)
+        return jsonify({"error": "Failed to start analysis stream"}), 500
 
 # --- Reporting and Data Export Routes --- (Updated signatures and download route)
 @app.route('/get_report_data', methods=['GET'])
