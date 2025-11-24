@@ -41,13 +41,13 @@ def add_security_headers(response):
     if request.origin:
         response.headers['Access-Control-Allow-Credentials'] = 'true'
     
-    # Content Security Policy - Allow Firebase and Google APIs
+    # Content Security Policy - Allow Firebase, Google APIs, and CDN libraries
     csp = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; "
-        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https:; "
-        "font-src 'self' data:; "
+        "font-src 'self' data: https://cdn.jsdelivr.net; "
         "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; "
         "frame-src 'self' https://*.firebaseapp.com; "
     )
