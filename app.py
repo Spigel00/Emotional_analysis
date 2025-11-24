@@ -33,6 +33,37 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
+# --- Security Headers for Production ---
+@app.after_request
+def add_security_headers(response):
+    """Add security headers for production deployment"""
+    # Allow credentials for Firebase auth
+    if request.origin:
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    
+    # Content Security Policy - Allow Firebase and Google APIs
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://apis.google.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com; "
+        "frame-src 'self' https://*.firebaseapp.com; "
+    )
+    response.headers['Content-Security-Policy'] = csp
+    
+    # Security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # Allow HTTPS only in production
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    return response
+
 # --- Persistent Storage Setup ---
 CASES_JSON_FILE = "user_cases.json"
 file_lock = threading.Lock() # To prevent race conditions during file read/write
@@ -1264,10 +1295,16 @@ try:
 except ImportError as e:
     app.logger.warning(f"Optional dependencies for camera feature not fully available: {e}")
 
-# Enable CORS for API endpoints (development - restrict origins in production)
+# Enable CORS for API endpoints and auth routes (development - restrict origins in production)
 try:
-    CORS(app, resources={r"/api/*": {"origins": "*"}})  # TODO: Restrict origins in production
-    app.logger.info("CORS enabled for /api/* endpoints (camera feature)")
+    CORS(app, 
+         resources={
+             r"/api/*": {"origins": "*", "supports_credentials": True},
+             r"/set_auth_cookie": {"origins": "*", "supports_credentials": True},
+             r"/static/js/*": {"origins": "*"}
+         },
+         supports_credentials=True)
+    app.logger.info("CORS enabled for API and auth endpoints")
 except:
     app.logger.warning("CORS could not be enabled - flask-cors may not be installed")
 
