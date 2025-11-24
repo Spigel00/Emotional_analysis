@@ -1387,8 +1387,14 @@ def process_frame():
     except Exception as e:
         app.logger.error(f"Unexpected error analyzing frame for user {user_id}: {e}", exc_info=True)
         return jsonify({"error": "Analysis failed"}), 500
+
 @app.route('/static/js/firebase-config.js')
 def firebase_config_js():
+    """
+    Serves Firebase configuration as a proper ES module.
+    Exports 'auth' and 'firebaseConfig' for use by frontend modules.
+    """
+    # Build config from environment variables
     cfg = {
         "apiKey": os.getenv("FIREBASE_API_KEY", ""),
         "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
@@ -1397,8 +1403,24 @@ def firebase_config_js():
         "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
         "appId": os.getenv("FIREBASE_APP_ID", "")
     }
-    js = "window.firebaseConfig = " + json.dumps(cfg) + ";"
-    return Response(js, mimetype='application/javascript')
+    
+    # Add measurement ID if provided (optional)
+    measurement_id = os.getenv("FIREBASE_MEASUREMENT_ID")
+    if measurement_id:
+        cfg["measurementId"] = measurement_id
+    
+    # Generate ES module JavaScript
+    js_module = f'''import {{ initializeApp }} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {{ getAuth }} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+const firebaseConfig = {json.dumps(cfg, indent=2)};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export {{ firebaseConfig }};
+'''
+    
+    return Response(js_module, mimetype='application/javascript')
 
 # === End of browser webcam routes ===
 
