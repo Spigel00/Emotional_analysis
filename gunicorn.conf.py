@@ -8,12 +8,13 @@ import os
 bind = f"0.0.0.0:{os.getenv('PORT', '10000')}"
 backlog = 2048
 
-# Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+# Worker processes - optimized for Render's resources
+workers = int(os.getenv('WEB_CONCURRENCY', '4'))  # Default 4 workers, override with env var
 worker_class = 'gevent'  # Use gevent for async/SSE support
 worker_connections = 1000
 max_requests = 1000
 max_requests_jitter = 50
+threads = 2  # 2 threads per worker
 
 # Timeout settings - CRITICAL for SSE
 timeout = 300  # 5 minutes - allows long-running SSE connections
