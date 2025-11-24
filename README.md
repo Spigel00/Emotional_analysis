@@ -223,16 +223,20 @@ A new isolated feature allows visitors to use their own browser camera for real-
 
 ### Deployment Notes (Render or similar platforms)
 
-1. **Environment Variables**: Ensure `GEMINI_API_KEY` and `FIREBASE_SERVICE_ACCOUNT_JSON` are set
-2. **HTTPS**: Render provides HTTPS by default - required for camera access
-3. **Instance Size**: DeepFace analysis is CPU-intensive - consider:
-   - Basic: Suitable for light testing
-   - Standard/Pro: Recommended for multiple concurrent users
-4. **CORS Configuration**: Update `app.py` line with CORS to restrict origins:
+1. **Environment Variables**: Set all required variables (see Environment Setup section)
+2. **Build Command**: `bash build.sh` or `pip install -r requirements.txt`
+3. **Start Command**: `bash start.sh` or `gunicorn --config gunicorn.conf.py app:app`
+4. **HTTPS**: Render provides HTTPS by default - required for camera access
+5. **Instance Size**: DeepFace analysis is CPU-intensive - consider:
+   - Basic: Suitable for light testing (1-2 users)
+   - Standard: Recommended for 5-10 concurrent users
+   - Pro: For production with 20+ concurrent users
+6. **Worker Configuration**: Uses gevent workers for SSE support with 5-minute timeout
+7. **CORS Configuration**: Update `app.py` line with CORS to restrict origins:
    ```python
    CORS(app, resources={r"/api/*": {"origins": ["https://yourdomain.com"]}})
    ```
-5. **Demo Image**: Move the placeholder image from `/mnt/data/` to `/static/images/` and update the path in `camera.html`
+8. **Demo Image**: Move the placeholder image from `/mnt/data/` to `/static/images/` and update the path in `camera.html`
 
 ### Troubleshooting
 

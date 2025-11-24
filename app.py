@@ -351,6 +351,8 @@ def generate_analysis_stream():
     global analysis_data, behavior_analysis_history
     last_emotion_sent_index = -1
     last_gemini_analysis_time = time.time()
+    last_heartbeat_time = time.time()
+    HEARTBEAT_INTERVAL = 15  # Send heartbeat every 15 seconds to keep connection alive
 
     try:
         while True: # Loop indefinitely until client disconnects
@@ -410,6 +412,12 @@ def generate_analysis_stream():
                 json_data = json.dumps(sse_data)
                 app.logger.debug(f"SERVER SENDING SSE (Behavior): {json_data[:100]}...")
                 yield f"data: {json_data}\r\n\r\n"
+
+            # Send heartbeat to keep connection alive
+            if now - last_heartbeat_time >= HEARTBEAT_INTERVAL:
+                yield ": heartbeat\r\n\r\n"
+                last_heartbeat_time = now
+                app.logger.debug("SSE heartbeat sent")
 
             # Wait before next check to avoid busy-waiting
             time.sleep(0.5) # Check for updates twice per second

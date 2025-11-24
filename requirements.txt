@@ -11,4 +11,7 @@ tf-keras
 dotenv
 flask-cors # Required for browser webcam feature
 numpy # Required for image processing
+gunicorn
+gevent # Required for SSE (Server-Sent Events) support
+
 
